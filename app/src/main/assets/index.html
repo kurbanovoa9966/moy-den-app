@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Мой день</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one narrow column — date header, day strip, composer, then a time-ruled agenda like a paper day planner. */
+:root{
+  --bg:#f2f4f8; --surface:#ffffff; --sunk:#e8ecf3; --ink:#141a2e; --muted:#5b6480; --line:#dbe0ea;
+  --now:#e0532a; --danger:#c43d3d; --ok:#1f9a5b;
+  --c-work:#2b49d6; --c-home:#b9790c; --c-sport:#1d8f55; --c-family:#cc3f69; --c-personal:#7448cf;
+  --f-display:"Unbounded","Onest",system-ui,sans-serif;
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e121d; --surface:#161b29; --sunk:#1d2335; --ink:#e7eaf4; --muted:#97a0ba; --line:#2a3147;
+  --now:#ff7a4d; --danger:#ff6b6b; --ok:#43c483;
+  --c-work:#7d95ff; --c-home:#e9ac3f; --c-sport:#45c584; --c-family:#f27499; --c-personal:#ab8df2;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0e121d; --surface:#161b29; --sunk:#1d2335; --ink:#e7eaf4; --muted:#97a0ba; --line:#2a3147;
+  --now:#ff7a4d; --danger:#ff6b6b; --ok:#43c483;
+  --c-work:#7d95ff; --c-home:#e9ac3f; --c-sport:#45c584; --c-family:#f27499; --c-personal:#ab8df2;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 64px}
+.wrap{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--c-work);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* header */
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,7vw,38px);line-height:1.05;margin:4px 0 0;text-wrap:balance;letter-spacing:-.01em}
+h1 .wd{display:block;font-size:.5em;font-weight:500;color:var(--muted);letter-spacing:0;margin-bottom:4px;text-transform:capitalize}
+.nav{display:flex;gap:6px}
+.nav button{border:1px solid var(--line);background:var(--surface);border-radius:999px;height:38px;min-width:38px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:500}
+.nav button:hover{border-color:var(--muted)}
+
+/* day strip */
+.strip{display:flex;flex-direction:column;gap:6px}
+.bar{position:relative;height:30px;background:var(--sunk);border-radius:8px;overflow:hidden}
+.seg{position:absolute;top:4px;bottom:4px;border-radius:4px;opacity:.5}
+.seg.done{opacity:1}
+.nowline{position:absolute;top:0;bottom:0;width:2px;background:var(--now)}
+.ticks{position:relative;height:14px;font-size:11px;color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.ticks span:first-child{transform:none}
+.ticks span:last-child{transform:translateX(-100%)}
+.stats{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}
+.stats b{color:var(--ink);font-weight:600}
+
+/* composer */
+.composer{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.composer label{font-weight:600}
+textarea{width:100%;min-height:96px;resize:vertical;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:12px;line-height:1.5}
+textarea:focus{border-color:var(--c-work);outline:none}
+.hint{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted)}
+.hint svg{flex:none;margin-top:1px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:600;background:var(--ink);color:var(--bg);display:inline-flex;align-items:center;gap:8px}
+.btn[disabled]{opacity:.55;cursor:progress}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:7px 12px;font-size:13px}
+.btn.danger{background:var(--danger);color:#fff}
+.note{font-size:13px;color:var(--muted)}
+.spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* agenda */
+.agenda{display:flex;flex-direction:column;gap:6px}
+.sec-title{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:6px}
+.sec-title h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600}
+.item{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:stretch}
+.time{padding-top:12px;text-align:right;font-size:13px;font-weight:700;color:var(--ink)}
+.time small{display:block;font-weight:500;color:var(--muted);font-size:11px}
+.card{--c:var(--c-personal);min-width:0;background:color-mix(in srgb,var(--c) 13%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 28%,transparent);border-radius:var(--r);padding:10px 10px 10px 12px;display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%}
+.card.done{background:var(--surface);border-color:var(--line)}
+.card.done .ttl{text-decoration:line-through;color:var(--muted)}
+.chk{flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--c);background:var(--surface);display:grid;place-items:center;margin-top:1px;padding:0}
+.chk svg{opacity:0}
+.card.done .chk{background:var(--c)}
+.card.done .chk svg{opacity:1}
+.body{flex:1;min-width:0;cursor:pointer;background:none;border:0;padding:0;text-align:left;display:flex;flex-direction:column;gap:3px}
+.ttl{font-weight:600;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--muted);align-items:center}
+.cat{display:inline-flex;align-items:center;gap:5px;color:var(--c);font-weight:600}
+.cat::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c)}
+.pri{color:var(--danger);font-weight:700}
+.warn{color:var(--now);font-weight:600}
+.pin{display:inline-flex;align-items:center;gap:3px}
+.gap{display:grid;grid-template-columns:52px 1fr;gap:10px;font-size:12px;color:var(--muted)}
+.gap div:last-child{border-left:2px dotted var(--line);padding:4px 0 4px 12px;margin-left:12px}
+.now{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:center;color:var(--now);font-size:12px;font-weight:700}
+.now div:first-child{text-align:right}
+.now div:last-child{height:2px;background:var(--now);border-radius:2px;position:relative}
+.now div:last-child::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--now)}
+.c-work{--c:var(--c-work)}.c-home{--c:var(--c-home)}.c-sport{--c:var(--c-sport)}.c-family{--c:var(--c-family)}.c-personal{--c:var(--c-personal)}
+
+.empty{border:1.5px dashed var(--line);border-radius:16px;padding:22px 18px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.empty h3{margin:0;font-size:17px}
+.empty q{color:var(--muted);font-style:italic}
+.loading{color:var(--muted);padding:20px 0}
+
+details.settings{border-top:1px solid var(--line);padding-top:14px}
+details.settings summary{cursor:pointer;color:var(--muted);font-size:14px;font-weight:500}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:9px;background:var(--bg);padding:9px 10px;color:var(--ink);font-size:15px;min-width:0;width:100%}
+.field textarea{min-height:60px}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,14,24,.45);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--surface);border-radius:18px 18px 0 0;max-height:88vh;overflow:auto;
+  padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet-in{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.sheet h3{margin:0;font-size:18px}
+.cats{display:flex;flex-wrap:wrap;gap:6px}
+.cats button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:14px;display:inline-flex;gap:6px;align-items:center}
+.cats button::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.cats button[aria-pressed="true"]{background:color-mix(in srgb,var(--c) 16%,var(--surface));border-color:var(--c);font-weight:600}
+.sheet-actions{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:4px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.2)}
+@media (prefers-reduced-motion: reduce){.spin{animation:none}}
+[hidden]{display:none!important}
+body{margin:0;-webkit-tap-highlight-color:transparent}
+.mic{flex:none;width:52px;height:52px;border-radius:50%;border:0;background:var(--c-work);color:#fff;display:grid;place-items:center;box-shadow:0 4px 14px color-mix(in srgb,var(--c-work) 40%,transparent)}
+.mic:active{transform:scale(.96)}
+.banner{background:color-mix(in srgb,var(--c-home) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--c-home) 35%,transparent);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:14px}
+.keyrow{display:flex;gap:6px}
+.keyrow input{flex:1}
+.check{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink);margin-top:10px}
+.check input{width:18px;height:18px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <div class="eyebrow" id="eyebrow">Сегодня</div>
+      <h1 id="title"><span class="wd">&nbsp;</span>&nbsp;</h1>
+    </div>
+    <nav class="nav" aria-label="Выбор дня">
+      <button id="prev" aria-label="Предыдущий день"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button id="today">Сегодня</button>
+      <button id="next" aria-label="Следующий день"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </nav>
+  </header>
+
+  <section class="strip" aria-label="Загрузка дня">
+    <div class="bar" id="bar"></div>
+    <div class="ticks mono" id="ticks"></div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <div class="banner" id="keyBanner" hidden>
+    <span>Добавьте ключ API, чтобы задачи раскладывались умно.</span>
+    <button class="btn small" id="openSettings">Открыть настройки</button>
+  </div>
+
+  <section class="composer">
+    <label for="input">Что нужно сделать?</label>
+    <textarea id="input" placeholder="Нажмите микрофон и скажите задачи одним потоком: работа, дом, спорт — всё вместе"></textarea>
+    <div class="hint">
+      <span>Время, длительность и категорию я определю сам, а «завтра» или «в пятницу» уйдут на нужный день.</span>
+    </div>
+    <div class="row">
+      <button class="mic" id="mic" aria-label="Надиктовать задачи"><svg width="24" height="24" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.5" y="1.5" width="5" height="8" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+      <button class="btn" id="parse">Добавить в план</button>
+      <span class="note" id="aiNote"></span>
+    </div>
+  </section>
+
+  <section class="agenda" id="agenda" aria-live="polite">
+    <div class="loading">Загружаю ваш день…</div>
+  </section>
+
+  <details class="settings" id="settingsBox">
+    <summary>Настройки</summary>
+    <div class="grid2">
+      <label class="field">Подъём / начало дня<input type="time" id="s-dayStart"></label>
+      <label class="field">Конец дня<input type="time" id="s-dayEnd"></label>
+      <label class="field">Работа с<input type="time" id="s-workStart"></label>
+      <label class="field">Работа до<input type="time" id="s-workEnd"></label>
+      <label class="field">Язык диктовки<select id="s-lang"><option value="ru-RU">Русский</option><option value="uz-UZ">Oʻzbekcha</option><option value="en-US">English</option></select></label>
+      <label class="field">Модель Claude<input type="text" id="s-model" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+    </div>
+    <div class="field" style="margin-top:10px">Ключ Anthropic API (sk-ant-…)
+      <div class="keyrow"><input type="password" id="s-key" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="sk-ant-..."><button class="btn ghost small" id="showKey" type="button">Показать</button></div>
+    </div>
+    <label class="check"><input type="checkbox" id="s-auto"> Сразу добавлять в план после диктовки</label>
+    <p class="note">Ключ и задачи хранятся только на этом телефоне.</p>
+  </details>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet-in">
+    <h3 id="sheetTitle">Задача</h3>
+    <label class="field">Название<input id="e-title" type="text"></label>
+    <div class="field">Категория<div class="cats" id="e-cats"></div></div>
+    <div class="grid2">
+      <label class="field">Время (пусто — подберу сам)<input id="e-time" type="time"></label>
+      <label class="field">Длительность<select id="e-dur"></select></label>
+      <label class="field">Важность<select id="e-pri"><option value="high">Важно</option><option value="normal">Обычно</option><option value="low">Можно отложить</option></select></label>
+      <label class="field">Когда лучше<select id="e-pref"><option value="any">В любое время</option><option value="morning">Утром</option><option value="day">Днём</option><option value="evening">Вечером</option></select></label>
+      <label class="field">День<input id="e-date" type="date"></label>
+    </div>
+    <label class="field">Заметка<textarea id="e-note"></textarea></label>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="e-del">Удалить</button>
+      <div class="row">
+        <button class="btn ghost" id="e-cancel">Отмена</button>
+        <button class="btn" id="e-save">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script>window.__APP__ = true;</script>
+
+<script>
+(() => {
+const CATS = {work:"Работа", home:"Дом", sport:"Спорт", family:"Семья", personal:"Личное"};
+const PRI = {high:0, normal:1, low:2};
+const PREFS = ["any","morning","day","evening"];
+const DURS = [10,15,20,30,45,60,90,120,150,180,240,300,360,480];
+const DEF = {dayStart:"07:00", dayEnd:"22:00", workStart:"09:00", workEnd:"18:00"};
+const $ = id => document.getElementById(id);
+
+/* ---------- helpers ---------- */
+const pad = n => String(n).padStart(2,"0");
+const keyOf = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parseKey = k => { const [y,m,d] = k.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (k,n) => { const d = parseKey(k); d.setDate(d.getDate()+n); return keyOf(d); };
+const toMin = t => { if(!t) return null; const m = /^(\d{1,2}):(\d{2})$/.exec(t); return m ? (+m[1])*60 + (+m[2]) : null; };
+const fmt = m => pad(Math.floor(m/60)%24)+":"+pad(m%60);
+const nowMin = () => { const d = new Date(); return d.getHours()*60 + d.getMinutes(); };
+const dur = m => m < 60 ? m+" мин" : (m%60 ? Math.floor(m/60)+" ч "+(m%60)+" мин" : (m/60)+" ч");
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+const clone = o => JSON.parse(JSON.stringify(o));
+function h(tag, attrs, ...kids){
+  const el = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs||{})) {
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(String(c)));
+  return el;
+}
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(()=> t.hidden = true, 3200); }
+const ls = {
+  get(k){ try { const v = localStorage.getItem("moyden:"+k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  set(k,v){ try { localStorage.setItem("moyden:"+k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- storage: private per-person docs in db, localStorage fallback ---------- */
+const Store = {
+  mode:"local", db:null, uid:null, q:{},
+  async init(){ /* phone app: everything lives in this phone's storage */ },
+  ref(name){ return this.db.collection("data/users/"+this.uid).doc(name); },
+  watch(name, cb){
+    if (this.mode === "db") return this.ref(name).onSnapshot(s => cb(s.exists ? s.data() : null, s.metadata), e => cb(undefined, {error:e}));
+    cb(ls.get(name), {fromCache:false}); return () => {};
+  },
+  async read(name){
+    if (this.mode === "db") { const s = await this.ref(name).get(); return s.exists ? clone(s.data()) : null; }
+    return ls.get(name);
+  },
+  write(name, data){
+    const run = () => this.mode === "db" ? this.ref(name).set(data) : (ls.set(name, data), Promise.resolve());
+    this.q[name] = (this.q[name] || Promise.resolve()).then(run).catch(e => {
+      toast(e && e.code === "quota_exceeded" ? "Хранилище заполнено — удалите старые задачи." : "Не удалось сохранить. Проверьте интернет.");
+    });
+    return this.q[name];
+  },
+  // read-modify-write inside the same queue so edits to one day never overlap
+  modify(name, fn){
+    this.q[name] = (this.q[name] || Promise.resolve()).then(async () => {
+      const cur = (await this.read(name)) || {tasks:[]};
+      const next = fn(cur);
+      if (this.mode === "db") await this.ref(name).set(next); else ls.set(name, next);
+    }).catch(() => toast("Не удалось сохранить. Проверьте интернет."));
+    return this.q[name];
+  }
+};
+
+/* ---------- state ---------- */
+const S = { date: keyOf(new Date()), tasks: [], settings: {...DEF}, loaded:false, stale:false };
+let unsubDay = null, loadTimer = null, sample = null, sampleChecked = false;
+
+function saveDay(){ Store.write("day-"+S.date, {tasks: S.tasks}); }
+
+function openDay(k){
+  S.date = k; S.loaded = false; S.stale = false; S.tasks = [];
+  if (unsubDay) unsubDay();
+  clearTimeout(loadTimer);
+  loadTimer = setTimeout(() => { S.stale = true; if (!S.loaded) { S.loaded = true; } render(); }, 10000);
+  render();
+  unsubDay = Store.watch("day-"+k, (data, meta) => {
+    if (data === undefined) { clearTimeout(loadTimer); S.loaded = true; S.stale = true; render(); return; }
+    S.tasks = data && Array.isArray(data.tasks) ? clone(data.tasks) : [];
+    S.loaded = true;
+    if (!meta || !meta.fromCache) { clearTimeout(loadTimer); S.stale = false; }
+    render();
+  });
+}
+
+/* ---------- scheduler ---------- */
+function schedule(tasks){
+  const st = S.settings;
+  const dS = toMin(st.dayStart) ?? 420, dE = toMin(st.dayEnd) ?? 1320;
+  const wS = toMin(st.workStart) ?? 540, wE = toMin(st.workEnd) ?? 1080;
+  const isToday = S.date === keyOf(new Date());
+  const isPast = S.date < keyOf(new Date());
+  const floor = isToday ? Math.max(dS, Math.ceil(nowMin()/15)*15) : dS;
+  const busy = [], placed = [], overflow = [];
+  tasks.forEach((t,i) => {
+    const m = toMin(t.time);
+    if (m != null) { placed.push({t, s:m, e:m+t.dur, fixed:true}); busy.push([m, m+t.dur]); }
+  });
+  const flex = tasks.map((t,i)=>({t,i})).filter(x => toMin(x.t.time) == null)
+    .sort((a,b) => (PRI[a.t.pri]??1) - (PRI[b.t.pri]??1) || a.i - b.i);
+  const gapIn = (a, b, d) => {
+    a = Math.ceil(a/5)*5;
+    const iv = busy.filter(x => x[1] > a && x[0] < b).sort((x,y)=>x[0]-y[0]);
+    let c = a;
+    for (const [s,e] of iv) { if (s - c >= d) return c; c = Math.max(c, Math.ceil(e/5)*5); }
+    return (b - c >= d) ? c : null;
+  };
+  for (const {t} of flex) {
+    if (isPast && !t.done) { overflow.push(t); continue; }
+    const wins = [];
+    if (t.pref === "morning") wins.push([dS, 720]);
+    else if (t.pref === "day") wins.push([720, 1020]);
+    else if (t.pref === "evening") wins.push([1020, dE]);
+    else if (t.cat === "work") wins.push([wS, wE]);
+    else if (t.cat === "home" || t.cat === "family") wins.push([wE, dE]);
+    wins.push([dS, dE]);
+    let at = null;
+    for (const [a,b] of wins) { at = gapIn(Math.max(a, floor), b, t.dur); if (at != null) break; }
+    if (at == null) { overflow.push(t); continue; }
+    placed.push({t, s:at, e:at+t.dur, fixed:false}); busy.push([at, at+t.dur]);
+  }
+  placed.sort((a,b) => a.s - b.s || a.e - b.e);
+  for (let i=0;i<placed.length;i++) for (let j=i+1;j<placed.length;j++)
+    if (placed[j].s < placed[i].e && placed[i].fixed && placed[j].fixed) { placed[i].clash = placed[j].clash = true; }
+  return {placed, overflow, dS, dE, isToday};
+}
+
+/* ---------- render ---------- */
+const checkSvg = () => { const s = document.createElementNS("http://www.w3.org/2000/svg","svg"); s.setAttribute("width","14"); s.setAttribute("height","14"); s.setAttribute("viewBox","0 0 14 14"); s.innerHTML = '<path d="m3 7.5 2.5 2.5L11 4.5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'; return s; };
+
+function render(){
+  const d = parseKey(S.date), todayK = keyOf(new Date());
+  const rel = S.date === todayK ? "Сегодня" : S.date === addDays(todayK,1) ? "Завтра" : S.date === addDays(todayK,-1) ? "Вчера" : (S.date < todayK ? "Прошедший день" : "Впереди");
+  $("eyebrow").textContent = rel;
+  const wd = d.toLocaleDateString("ru-RU",{weekday:"long"});
+  const dm = d.toLocaleDateString("ru-RU",{day:"numeric", month:"long"});
+  $("title").replaceChildren(h("span",{class:"wd"}, wd), dm);
+  $("today").hidden = S.date === todayK;
+
+  const {placed, overflow, dS, dE, isToday} = schedule(S.tasks);
+
+  // strip
+  const span = Math.max(60, dE - dS), pct = m => Math.min(100, Math.max(0, (m - dS)/span*100));
+  const bar = $("bar"); bar.replaceChildren();
+  placed.forEach(p => bar.append(h("div",{class:"seg c-"+p.t.cat+(p.t.done?" done":""), style:`left:${pct(p.s)}%;width:${Math.max(.8,pct(p.e)-pct(p.s))}%;background:var(--c)`, title:fmt(p.s)+" "+p.t.title})));
+  if (isToday) { const n = nowMin(); if (n >= dS && n <= dE) bar.append(h("div",{class:"nowline", style:`left:${pct(n)}%`})); }
+  const ticks = $("ticks"); ticks.replaceChildren();
+  const step = span > 600 ? 180 : 120;
+  const marks = [dS]; for (let m = dS + step; m <= dE - step/2; m += step) marks.push(m); marks.push(dE);
+  marks.forEach(m => ticks.append(h("span",{style:`left:${pct(m)}%`}, fmt(m))));
+  const busyMin = placed.reduce((a,p)=>a+p.t.dur,0), doneN = S.tasks.filter(t=>t.done).length;
+  $("stats").replaceChildren(
+    h("span",null,h("b",null,S.tasks.length)," "+plural(S.tasks.length,"задача","задачи","задач")),
+    h("span",null,"выполнено ",h("b",null,doneN)),
+    h("span",null,"занято ",h("b",null,dur(busyMin))),
+    h("span",null,"свободно ",h("b",null,dur(Math.max(0, span - busyMin))))
+  );
+
+  // agenda
+  const ag = $("agenda"); ag.replaceChildren();
+  if (!S.loaded) { ag.append(h("div",{class:"loading"},"Загружаю ваш день…")); return; }
+  if (S.stale) ag.append(h("p",{class:"note"},"Нет связи с хранилищем — данные могут быть неактуальны."));
+  if (!S.tasks.length) { ag.append(emptyState()); return; }
+
+  ag.append(h("div",{class:"sec-title"}, h("h2",null,"План"), h("span",{class:"note"}, "нажмите на задачу, чтобы изменить")));
+  const n = nowMin(); let nowDrawn = !isToday; let prevEnd = null;
+  placed.forEach(p => {
+    if (!nowDrawn && p.s >= n) { ag.append(nowRow(n)); nowDrawn = true; prevEnd = Math.max(prevEnd ?? n, n); }
+    if (prevEnd != null && p.s - prevEnd >= 30) ag.append(h("div",{class:"gap"}, h("div"), h("div",null,"свободно "+dur(p.s - prevEnd))));
+    ag.append(itemRow(p));
+    prevEnd = Math.max(prevEnd ?? 0, p.e);
+  });
+  if (!nowDrawn) ag.append(nowRow(n));
+
+  if (overflow.length) {
+    const past = S.date < todayK;
+    ag.append(h("div",{class:"sec-title"}, h("h2",null, past ? "Не выполнено" : "Не поместилось в день"), h("span",{class:"note"}, past ? "" : "сократите время или перенесите")));
+    overflow.forEach(t => ag.append(itemRow({t, s:null, e:null})));
+  }
+  const undone = S.tasks.filter(t => !t.done);
+  if (undone.length && S.date <= todayK) {
+    const b = h("button",{class:"btn ghost small", onclick: () => {
+      if (b.dataset.armed) { moveUndone(); return; }
+      b.dataset.armed = "1"; b.textContent = "Перенести "+undone.length+" "+plural(undone.length,"задачу","задачи","задач")+"? Нажмите ещё раз";
+      setTimeout(()=>{ if (b.isConnected) { delete b.dataset.armed; b.textContent = "Перенести невыполненное на завтра"; } }, 4000);
+    }}, "Перенести невыполненное на завтра");
+    ag.append(h("div",{class:"row", style:"margin-top:10px"}, b));
+  }
+}
+function plural(n,a,b,c){ const m10=n%10, m100=n%100; return m10===1&&m100!==11?a:(m10>=2&&m10<=4&&(m100<10||m100>=20)?b:c); }
+function nowRow(n){ return h("div",{class:"now"}, h("div",{class:"mono"}, fmt(n)), h("div")); }
+
+function itemRow(p){
+  const t = p.t;
+  const card = h("div",{class:"card c-"+t.cat+(t.done?" done":""), style:`min-height:${Math.min(150, 50 + t.dur*0.35)}px`});
+  const chk = h("button",{class:"chk", "aria-label": t.done ? "Отметить как невыполненную" : "Отметить как выполненную", "aria-pressed": t.done ? "true":"false",
+    onclick: () => toggleDone(t.id, p.s)}, checkSvg());
+  const meta = h("div",{class:"meta"},
+    h("span",{class:"cat"}, CATS[t.cat]),
+    h("span",{class:"mono"}, dur(t.dur)),
+    t.pri === "high" ? h("span",{class:"pri"},"важно") : null,
+    toMin(t.time) != null && !t.done ? h("span",{class:"pin"}, "точное время") : null,
+    p.clash ? h("span",{class:"warn"},"пересекается") : null,
+    t.note ? h("span",null,t.note) : null);
+  const body = h("button",{class:"body", onclick: () => openEdit(t.id)}, h("span",{class:"ttl"}, t.title), meta);
+  card.append(chk, body);
+  const time = h("div",{class:"time mono"}, p.s != null ? fmt(p.s) : "—", p.s != null ? h("small",null, fmt(p.e)) : null);
+  return h("div",{class:"item"}, time, card);
+}
+
+const EXAMPLE = "В 9 планёрка с супервайзерами, потом объехать точки в Коканде часа на три, в обед позвонить поставщику, вечером спортзал час, купить хлеб и молоко, завтра в 10 встреча с директором";
+function emptyState(){
+  return h("div",{class:"empty"},
+    h("h3",null,"На этот день пока ничего нет"),
+    h("div",{class:"note"},"Скажите всё одним потоком, например:"),
+    h("q",null,EXAMPLE),
+    h("button",{class:"btn ghost small", onclick: () => { $("input").value = EXAMPLE; saveDraft(); $("input").focus(); }}, "Вставить этот пример"));
+}
+
+/* ---------- actions ---------- */
+function toggleDone(id, placedAt){
+  const t = S.tasks.find(x => x.id === id); if (!t) return;
+  t.done = !t.done;
+  if (t.done && toMin(t.time) == null && placedAt != null) { t.time = fmt(placedAt); t.autoTime = true; }
+  else if (!t.done && t.autoTime) { t.time = null; delete t.autoTime; }
+  saveDay(); render();
+}
+function moveUndone(){
+  const moving = S.tasks.filter(t => !t.done).map(t => { const c = {...t}; if (c.autoTime) c.time = null; delete c.autoTime; return c; });
+  S.tasks = S.tasks.filter(t => t.done); saveDay();
+  const todayK = keyOf(new Date());
+  const into = S.date < todayK ? todayK : addDays(S.date, 1);
+  Store.modify("day-"+into, cur => ({tasks:[...(cur.tasks||[]), ...moving]}));
+  toast("Перенесено: "+moving.length+" — на "+parseKey(into).toLocaleDateString("ru-RU",{weekday:"long", day:"numeric", month:"long"}));
+  render();
+}
+
+/* ---------- edit sheet ---------- */
+let editId = null, editCat = "personal";
+function openEdit(id){
+  const t = S.tasks.find(x => x.id === id); if (!t) return;
+  editId = id; editCat = t.cat;
+  $("e-title").value = t.title;
+  $("e-time").value = t.autoTime ? "" : (t.time || "");
+  const sel = $("e-dur"); sel.replaceChildren(...[...new Set([...DURS, t.dur])].sort((a,b)=>a-b).map(m => h("option",{value:m, selected: m===t.dur}, dur(m))));
+  $("e-pri").value = t.pri; $("e-pref").value = t.pref || "any"; $("e-date").value = S.date; $("e-note").value = t.note || "";
+  drawCats();
+  const del = $("e-del"); delete del.dataset.armed; del.textContent = "Удалить"; del.className = "btn ghost";
+  $("scrim").hidden = false; $("sheet").hidden = false; $("e-title").focus();
+}
+function drawCats(){
+  $("e-cats").replaceChildren(...Object.entries(CATS).map(([k,n]) => h("button",{class:"c-"+k, type:"button", "aria-pressed": k===editCat ? "true":"false", onclick: () => { editCat = k; drawCats(); }}, n)));
+}
+function closeEdit(){ $("scrim").hidden = true; $("sheet").hidden = true; editId = null; }
+$("e-cancel").onclick = closeEdit; $("scrim").onclick = closeEdit;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && editId) closeEdit(); });
+$("e-del").onclick = () => {
+  const b = $("e-del");
+  if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "Точно удалить?"; b.className = "btn danger"; return; }
+  S.tasks = S.tasks.filter(x => x.id !== editId); saveDay(); closeEdit(); render(); toast("Задача удалена");
+};
+$("e-save").onclick = () => {
+  const t = S.tasks.find(x => x.id === editId); if (!t) return closeEdit();
+  t.title = $("e-title").value.trim() || t.title;
+  t.cat = editCat;
+  const tm = $("e-time").value; t.time = tm || null; delete t.autoTime;
+  t.dur = +$("e-dur").value || t.dur; t.pri = $("e-pri").value; t.pref = $("e-pref").value; t.note = $("e-note").value.trim();
+  const nd = $("e-date").value;
+  if (nd && nd !== S.date && /^\d{4}-\d{2}-\d{2}$/.test(nd)) {
+    S.tasks = S.tasks.filter(x => x.id !== t.id);
+    const moved = {...t, done:false};
+    Store.modify("day-"+nd, cur => ({tasks:[...(cur.tasks||[]), moved]}));
+    toast("Перенесено на "+parseKey(nd).toLocaleDateString("ru-RU",{day:"numeric", month:"long"}));
+  }
+  saveDay(); closeEdit(); render();
+};
+
+/* ---------- AI parsing ---------- */
+function buildPrompt(text){
+  const today = new Date(), tk = keyOf(today);
+  const days = []; for (let i=0;i<8;i++){ const k = addDays(tk,i); days.push(k+" — "+parseKey(k).toLocaleDateString("ru-RU",{weekday:"long"})); }
+  return `Ты помощник, который превращает надиктованный голосом поток задач в список для планировщика дня.
+Текст получен распознаванием речи: может быть без знаков препинания, с ошибками, на русском, узбекском или вперемешку.
+
+Сейчас: ${tk}, ${pad(today.getHours())}:${pad(today.getMinutes())}.
+Пользователь сейчас смотрит день: ${S.date} (${parseKey(S.date).toLocaleDateString("ru-RU",{weekday:"long"})}).
+Ближайшие даты:
+${days.join("\n")}
+Рабочий день: ${S.settings.workStart}–${S.settings.workEnd}. День: ${S.settings.dayStart}–${S.settings.dayEnd}.
+
+Разбей текст на отдельные задачи. Для каждой задачи:
+- "title": коротко и понятно, с заглавной буквы, на языке пользователя, без слов о времени и дате.
+- "cat": одна из "work" (работа, встречи, звонки по работе, клиенты, торговые точки, отчёты), "home" (дом, покупки, быт, ремонт), "sport" (тренировки, бег, зал, прогулка как спорт), "family" (дети, родители, семья, гости), "personal" (учёба, здоровье, врачи, личные дела, отдых).
+- "date": "YYYY-MM-DD". Если сказано «завтра», «послезавтра», «в пятницу» и т. п. — нужная дата из списка выше. Иначе — ${S.date}.
+- "time": "HH:MM" только если время названо явно («в 9», «в полтретьего» = "14:30", «к 15:00» = "15:00" минус длительность не нужно, просто "15:00"). «В 9» для работы — "09:00", «в 7 вечера» — "19:00". Если время не названо — null.
+- "dur": длительность в минутах. Если не сказана — оцени реалистично (звонок 15, короткое дело 30, встреча 60, тренировка 60, поездка по городу 60–120).
+- "pref": если точного времени нет — "morning", "day" (обед и после обеда), "evening" или "any".
+- "pri": "high" если «срочно», «обязательно», «важно», «не забыть»; "low" если «по возможности», «если успею»; иначе "normal".
+- "note": важная деталь (с кем, где, что взять) или "".
+
+Если одна фраза содержит несколько дел («купить хлеб и молоко» — это одна задача, а «позвонить Алишеру и съездить на склад» — две), дели по смыслу.
+Ответь только JSON вида {"tasks":[{"title":"","cat":"","date":"","time":null,"dur":30,"pref":"any","pri":"normal","note":""}]}.
+
+Текст пользователя:
+"""${text.slice(0, 6000)}"""`;
+}
+
+function localParse(text){
+  return text.split(/[\n;.,]+|\s+(?:потом|затем|после этого|а ещё|ещё|еще)\s+/i).map(s => s.trim()).filter(Boolean).map(s => {
+    let time = null, m = /(\d{1,2})[:.](\d{2})/.exec(s) || /\bв\s+(\d{1,2})\b/i.exec(s);
+    if (m) { let hh = +m[1]; if (/вечер/i.test(s) && hh < 12) hh += 12; if (hh < 24) time = pad(hh)+":"+pad(m[2] ? +m[2] : 0); }
+    const low = s.toLowerCase();
+    const cat = /зал|трениров|бег|спорт|плаван|футбол/.test(low) ? "sport" : /купить|магазин|дом|убрать|ремонт|рынок/.test(low) ? "home" : /сын|дочь|дет|мам|пап|семь|жена/.test(low) ? "family" : /встреч|звон|клиент|отчёт|отчет|планёрк|планерк|точк|склад|офис|супервайз|директор/.test(low) ? "work" : "personal";
+    return {title: s.charAt(0).toUpperCase()+s.slice(1), cat, date:S.date, time, dur: cat==="sport"?60:30, pref:"any", pri:/срочно|важно|обязательно/.test(low)?"high":"normal", note:""};
+  });
+}
+
+function normalize(x){
+  const title = String(x && x.title || "").trim().slice(0,140);
+  if (!title) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(x.date) ? x.date : S.date;
+  const tm = typeof x.time === "string" && /^\d{1,2}:\d{2}$/.test(x.time) ? (pad(+x.time.split(":")[0])+":"+x.time.split(":")[1]) : null;
+  return { id: uid(), title, cat: CATS[x.cat] ? x.cat : "personal", date,
+    time: tm && toMin(tm) < 1440 ? tm : null,
+    dur: Math.min(720, Math.max(5, Math.round(+x.dur || 30))),
+    pref: PREFS.includes(x.pref) ? x.pref : "any",
+    pri: x.pri in PRI ? x.pri : "normal",
+    note: String(x.note || "").trim().slice(0,200), done:false };
+}
+
+/* ---------- app settings (key, model, voice) ---------- */
+const APP_DEF = {key:"", model:"claude-haiku-5-5", lang:"ru-RU", auto:true};
+const APP = {...APP_DEF, ...(ls.get("app") || {})};
+function saveApp(){ ls.set("app", APP); refreshKeyUI(); }
+function refreshKeyUI(){
+  const has = !!APP.key.trim();
+  $("keyBanner").hidden = has;
+  $("aiNote").textContent = has ? "" : "Без ключа каждая фраза станет отдельной задачей.";
+}
+$("s-key").value = APP.key; $("s-model").value = APP.model; $("s-lang").value = APP.lang; $("s-auto").checked = APP.auto;
+$("s-key").addEventListener("change", e => { APP.key = e.target.value.trim(); saveApp(); if (APP.key) toast("Ключ сохранён"); });
+$("s-model").addEventListener("change", e => { APP.model = e.target.value.trim() || APP_DEF.model; e.target.value = APP.model; saveApp(); });
+$("s-lang").addEventListener("change", e => { APP.lang = e.target.value; saveApp(); });
+$("s-auto").addEventListener("change", e => { APP.auto = e.target.checked; saveApp(); });
+$("showKey").onclick = () => { const i = $("s-key"); const show = i.type === "password"; i.type = show ? "text" : "password"; $("showKey").textContent = show ? "Скрыть" : "Показать"; };
+$("openSettings").onclick = () => { const d = $("settingsBox"); d.open = true; d.scrollIntoView({behavior:"smooth"}); setTimeout(() => $("s-key").focus(), 300); };
+
+/* ---------- Claude via the Android bridge ---------- */
+const pending = {};
+window.onClaude = (id, res) => { const p = pending[id]; if (!p) return; delete pending[id]; p(res); };
+function askClaude(prompt){
+  return new Promise(resolve => {
+    if (!window.Android || !Android.callClaude) return resolve({ok:false, status:-1, error:"no bridge"});
+    const id = uid(); pending[id] = resolve;
+    Android.callClaude(id, APP.key, APP.model, prompt);
+  });
+}
+function extractJson(text){
+  const t = String(text || "").trim();
+  try { return JSON.parse(t); } catch {}
+  const f = /```(?:json)?\s*([\s\S]*?)```/.exec(t); if (f) { try { return JSON.parse(f[1]); } catch {} }
+  const a = t.indexOf("{"), b = t.lastIndexOf("}");
+  if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b+1)); } catch {} }
+  return null;
+}
+function errorText(r){
+  const msg = String(r.error || "").toLowerCase();
+  if (r.status === 0) return "Нет интернета. Проверьте подключение и нажмите ещё раз.";
+  if (r.status === 401) return "Ключ API не подходит. Проверьте его в настройках.";
+  if (r.status === 403) return "Ключ API не имеет доступа. Проверьте его в консоли Anthropic.";
+  if (r.status === 404 || msg.includes("model")) return "Модель не найдена. Проверьте название модели в настройках.";
+  if (msg.includes("credit") || msg.includes("balance")) return "На балансе Anthropic закончились деньги. Пополните его в консоли.";
+  if (r.status === 429) return "Слишком много запросов. Подождите минуту.";
+  if (r.status >= 500) return "Сервис Claude перегружен. Попробуйте через минуту.";
+  return "Не получилось разобрать текст. Нажмите ещё раз.";
+}
+
+/* ---------- voice ---------- */
+$("mic").onclick = () => {
+  if (window.Android && Android.startVoice) Android.startVoice(APP.lang);
+  else { $("input").focus(); toast("Используйте микрофон на клавиатуре."); }
+};
+window.onVoice = text => {
+  text = String(text || "").trim();
+  if (!text) return;
+  const ta = $("input");
+  ta.value = ta.value.trim() ? ta.value.trim() + "\n" + text : text;
+  saveDraft();
+  if (APP.auto) $("parse").click();
+};
+window.onVoiceError = () => toast("На телефоне нет распознавания речи. Установите приложение Google и попробуйте снова.");
+window.onBack = () => {
+  if (editId) { closeEdit(); return true; }
+  if ($("settingsBox").open) { $("settingsBox").open = false; return true; }
+  return false;
+};
+
+let busy = false;
+$("parse").onclick = async () => {
+  const text = $("input").value.trim();
+  if (!text || busy) { if (!text) $("input").focus(); return; }
+  busy = true; const btn = $("parse");
+  btn.disabled = true; btn.replaceChildren(h("span",{class:"spin"}), "Раскладываю по времени…");
+  let items = null;
+  if (APP.key.trim()) {
+    const r = await askClaude(buildPrompt(text));
+    if (r.ok) {
+      const res = extractJson(r.text);
+      if (res) items = Array.isArray(res) ? res : (Array.isArray(res.tasks) ? res.tasks : []);
+      else toast("Не получилось разобрать ответ. Нажмите ещё раз.");
+    } else if (r.status === -1) items = localParse(text);
+    else toast(errorText(r));
+  } else items = localParse(text);
+
+  if (items) {
+    const tasks = items.map(normalize).filter(Boolean);
+    if (!tasks.length) toast("Не нашёл задач в тексте.");
+    else {
+      const byDate = {};
+      tasks.forEach(t => { const d = t.date; delete t.date; (byDate[d] = byDate[d] || []).push(t); });
+      const parts = [];
+      for (const [d, list] of Object.entries(byDate)) {
+        if (d === S.date) { S.tasks.push(...list); saveDay(); parts.push(list.length+" — на этот день"); }
+        else {
+          Store.modify("day-"+d, cur => ({tasks:[...(cur.tasks||[]), ...list]}));
+          parts.push(list.length+" — на "+parseKey(d).toLocaleDateString("ru-RU",{weekday:"short", day:"numeric", month:"short"}));
+        }
+      }
+      toast("Добавлено: "+parts.join(", "));
+      $("input").value = ""; saveDraft();
+      render();
+    }
+  }
+  btn.disabled = false; btn.replaceChildren("Добавить в план"); busy = false;
+};
+$("input").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("parse").click(); });
+
+/* draft */
+let draftT; function saveDraft(){ clearTimeout(draftT); draftT = setTimeout(() => { try { localStorage.setItem("moyden:draft", $("input").value); } catch {} }, 300); }
+$("input").addEventListener("input", saveDraft);
+try { const d = localStorage.getItem("moyden:draft"); if (d) $("input").value = d; } catch {}
+
+/* nav */
+$("prev").onclick = () => openDay(addDays(S.date,-1));
+$("next").onclick = () => openDay(addDays(S.date,1));
+$("today").onclick = () => openDay(keyOf(new Date()));
+
+/* settings */
+const SKEYS = ["dayStart","dayEnd","workStart","workEnd"];
+function fillSettings(){ SKEYS.forEach(k => $("s-"+k).value = S.settings[k]); }
+SKEYS.forEach(k => $("s-"+k).addEventListener("change", e => {
+  if (!e.target.value) return;
+  S.settings[k] = e.target.value; Store.write("settings", {...S.settings}); render();
+}));
+
+/* boot */
+fillSettings(); render();
+setInterval(() => { if (S.date === keyOf(new Date()) && !editId) render(); }, 60000);
+(async () => {
+  await Store.init();
+  Store.watch("settings", data => { if (data) { S.settings = {...DEF, ...data}; fillSettings(); render(); } });
+  openDay(S.date);
+  refreshKeyUI();
+})();
+})();
+</script>
+</body>
+</html>
