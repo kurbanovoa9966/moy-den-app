@@ -201,6 +201,8 @@ body{margin:0;-webkit-tap-highlight-color:transparent}
     </div>
     <div class="field" style="margin-top:10px">Ключ Anthropic API (sk-ant-…)
       <div class="keyrow"><input type="password" id="s-key" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="sk-ant-..."><button class="btn ghost small" id="showKey" type="button">Показать</button></div>
+      <div class="row" style="margin-top:6px"><button class="btn small" id="testKey" type="button">Проверить ключ</button><span class="note" id="keyInfo"></span></div>
+      <p class="note" id="keyResult" style="margin:4px 0 0"></p>
     </div>
     <label class="check"><input type="checkbox" id="s-auto"> Сразу добавлять в план после диктовки</label>
     <p class="note">Ключ и задачи хранятся только на этом телефоне.</p>
@@ -264,7 +266,7 @@ function h(tag, attrs, ...kids){
   for (const c of kids.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(String(c)));
   return el;
 }
-function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(()=> t.hidden = true, 3200); }
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(()=> t.hidden = true, Math.max(3200, msg.length * 60)); }
 const ls = {
   get(k){ try { const v = localStorage.getItem("moyden:"+k); return v ? JSON.parse(v) : null; } catch { return null; } },
   set(k,v){ try { localStorage.setItem("moyden:"+k, JSON.stringify(v)); } catch {} }
@@ -385,7 +387,7 @@ function render(){
   if (isToday) { const n = nowMin(); if (n >= dS && n <= dE) bar.append(h("div",{class:"nowline", style:`left:${pct(n)}%`})); }
   const ticks = $("ticks"); ticks.replaceChildren();
   const step = span > 600 ? 180 : 120;
-  const marks = [dS]; for (let m = dS + step; m <= dE - step/2; m += step) marks.push(m); marks.push(dE);
+  const marks = [dS]; for (let m = dS + step; m <= dE - step*0.75; m += step) marks.push(m); marks.push(dE);
   marks.forEach(m => ticks.append(h("span",{style:`left:${pct(m)}%`}, fmt(m))));
   const busyMin = placed.reduce((a,p)=>a+p.t.dur,0), doneN = S.tasks.filter(t=>t.done).length;
   $("stats").replaceChildren(
@@ -577,7 +579,27 @@ function refreshKeyUI(){
   $("aiNote").textContent = has ? "" : "Без ключа каждая фраза станет отдельной задачей.";
 }
 $("s-key").value = APP.key; $("s-model").value = APP.model; $("s-lang").value = APP.lang; $("s-auto").checked = APP.auto;
-$("s-key").addEventListener("change", e => { APP.key = e.target.value.trim(); saveApp(); if (APP.key) toast("Ключ сохранён"); });
+const cleanKey = k => String(k || "").replace(/[\s"'«»`​-‍⁠﻿]/g, "");
+function keyInfo(){
+  const k = APP.key, el = $("keyInfo");
+  if (!k) { el.textContent = ""; return; }
+  const okStart = k.startsWith("sk-ant-api"), shortish = k.length < 90, dots = /…|\.\.\./.test(k);
+  el.textContent = k.length + " символов" + (dots ? " · в ключе есть «…» — это сокращённая копия" : !okStart ? " · ключ должен начинаться с sk-ant-api" : shortish ? " · похоже, скопирован не полностью" : "");
+  el.style.color = (dots || !okStart || shortish) ? "var(--danger)" : "";
+}
+APP.key = cleanKey(APP.key); $("s-key").value = APP.key; keyInfo();
+function setKey(v){ APP.key = cleanKey(v); saveApp(); keyInfo(); $("keyResult").textContent = ""; }
+$("s-key").addEventListener("input", e => setKey(e.target.value));
+$("s-key").addEventListener("change", e => { setKey(e.target.value); e.target.value = APP.key; if (APP.key) toast("Ключ сохранён"); });
+$("testKey").onclick = async () => {
+  const out = $("keyResult"), b = $("testKey");
+  if (!APP.key) { out.textContent = "Сначала вставьте ключ."; return; }
+  b.disabled = true; out.style.color = ""; out.textContent = "Проверяю…";
+  const r = await askClaude("Ответь одним словом: ok");
+  b.disabled = false;
+  if (r.ok) { out.style.color = "var(--ok)"; out.textContent = "Ключ работает. Можно диктовать задачи."; }
+  else { out.style.color = "var(--danger)"; out.textContent = errorText(r) + (r.status > 0 ? " Ответ сервера (" + r.status + "): " + String(r.error || "").slice(0, 200) : ""); }
+};
 $("s-model").addEventListener("change", e => { APP.model = e.target.value.trim() || APP_DEF.model; e.target.value = APP.model; saveApp(); });
 $("s-lang").addEventListener("change", e => { APP.lang = e.target.value; saveApp(); });
 $("s-auto").addEventListener("change", e => { APP.auto = e.target.checked; saveApp(); });
@@ -605,13 +627,13 @@ function extractJson(text){
 function errorText(r){
   const msg = String(r.error || "").toLowerCase();
   if (r.status === 0) return "Нет интернета. Проверьте подключение и нажмите ещё раз.";
-  if (r.status === 401) return "Ключ API не подходит. Проверьте его в настройках.";
+  if (r.status === 401) return "Ключ API не подходит: скорее всего, он скопирован не полностью. Создайте новый ключ в консоли и скопируйте его кнопкой Copy.";
   if (r.status === 403) return "Ключ API не имеет доступа. Проверьте его в консоли Anthropic.";
   if (r.status === 404 || msg.includes("model")) return "Модель не найдена. Проверьте название модели в настройках.";
   if (msg.includes("credit") || msg.includes("balance")) return "На балансе Anthropic закончились деньги. Пополните его в консоли.";
   if (r.status === 429) return "Слишком много запросов. Подождите минуту.";
   if (r.status >= 500) return "Сервис Claude перегружен. Попробуйте через минуту.";
-  return "Не получилось разобрать текст. Нажмите ещё раз.";
+  return "Не получилось разобрать текст (" + r.status + "): " + String(r.error || "").slice(0, 160);
 }
 
 /* ---------- voice ---------- */
