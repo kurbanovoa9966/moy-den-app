@@ -268,8 +268,17 @@ function h(tag, attrs, ...kids){
 }
 function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(()=> t.hidden = true, Math.max(3200, msg.length * 60)); }
 const ls = {
-  get(k){ try { const v = localStorage.getItem("moyden:"+k); return v ? JSON.parse(v) : null; } catch { return null; } },
-  set(k,v){ try { localStorage.setItem("moyden:"+k, JSON.stringify(v)); } catch {} }
+  get(k){
+    let v = null;
+    try { if (window.Android && Android.load) v = Android.load("moyden:"+k); } catch {}
+    if (v == null) { try { v = localStorage.getItem("moyden:"+k); } catch {} }
+    try { return v ? JSON.parse(v) : null; } catch { return null; }
+  },
+  set(k,v){
+    const s = JSON.stringify(v);
+    try { if (window.Android && Android.save) Android.save("moyden:"+k, s); } catch {}
+    try { localStorage.setItem("moyden:"+k, s); } catch {}
+  }
 };
 
 /* ---------- storage: private per-person docs in db, localStorage fallback ---------- */

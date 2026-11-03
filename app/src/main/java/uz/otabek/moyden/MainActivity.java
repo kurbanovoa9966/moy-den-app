@@ -99,6 +99,17 @@ public class MainActivity extends Activity {
     }
 
     private class Bridge {
+        // Native storage: survives WebView data resets
+        @JavascriptInterface
+        public String load(String key) {
+            return getSharedPreferences("moyden", MODE_PRIVATE).getString(key, null);
+        }
+
+        @JavascriptInterface
+        public void save(String key, String value) {
+            getSharedPreferences("moyden", MODE_PRIVATE).edit().putString(key, value).apply();
+        }
+
         @JavascriptInterface
         public void startVoice(final String lang) {
             main.post(() -> {

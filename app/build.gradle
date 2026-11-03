@@ -10,13 +10,27 @@ android {
         applicationId 'uz.otabek.moyden'
         minSdk 28
         targetSdk 34
-        versionCode 2
-        versionName '1.1'
+        versionCode 3
+        versionName '1.2'
+    }
+
+    // One fixed key for every build, so new versions install over old ones and keep the data
+    signingConfigs {
+        moyden {
+            storeFile file('moyden.jks')
+            storePassword 'moyden2026'
+            keyAlias 'moyden'
+            keyPassword 'moyden2026'
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.moyden
+        }
         release {
             minifyEnabled false
+            signingConfig signingConfigs.moyden
         }
     }
 
